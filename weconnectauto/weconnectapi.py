@@ -167,6 +167,7 @@ class WeConnectAPI:
         self.username = username
         self.password = password
         self.jar = MozillaCookieJar(Path(cookie_file).as_posix())
+        self.cookie_file = cookie_file
         self.state_file = state_file
         self.last_response_file = last_response_file
         self._state = {}
@@ -203,6 +204,7 @@ class WeConnectAPI:
                     print("State loaded")
 
     async def save_state(self):
+        Path(self.state_file).parent.mkdir(parents=True, exist_ok=True)
         with Path(self.state_file).open(mode="wt") as f:
             json.dump(self._state, f)
             if self.verbose:
@@ -216,7 +218,9 @@ class WeConnectAPI:
         )
         if self.verbose:
             await self.dump_response_info(response)
+        Path(self.cookie_file).parent.mkdir(parents=True, exist_ok=True)
         self.jar.save(ignore_discard=True, ignore_expires=True)
+        Path(self.cookie_file).chmod(int("0b110000000", base=0))
 
         if response.url.path.endswith("/login"):
             if self.verbose:

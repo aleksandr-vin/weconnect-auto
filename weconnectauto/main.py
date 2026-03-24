@@ -1,6 +1,7 @@
 from functools import wraps
 from typing import Annotated
 from enum import StrEnum
+from pathlib import Path
 
 import anyio
 import typer
@@ -17,8 +18,12 @@ class OutputFormat(StrEnum):
 
 state = {
     "verbose": False,
-    "cookie_file": "cookies.txt",
-    "state_file": "state.json",
+    "cookie_file": Path(
+        Path.home(), ".config", "weconnectauto", "cookies.txt"
+    ).as_posix(),
+    "state_file": Path(
+        Path.home(), ".config", "weconnectauto", "state.json"
+    ).as_posix(),
     "last_response_file": None,
     "output_format": OutputFormat.DICT,
 }
