@@ -10,3 +10,6 @@ wheels/
 .venv
 
 cookies.txt
+last-response.html
+state.json
+vehicle-details.json
