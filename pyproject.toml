@@ -1,7 +1,7 @@
 [project]
 name = "weconnect-auto"
 version = "0.1.0"
-description = "Add your description here"
+description = "CLI or Python client for scripting your Volkswagen auto info from https://www.vwbedrijfswagens.nl/"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
