@@ -9,7 +9,7 @@ class _Config(BaseModel):
 
 
 class _CamelConfig(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel)
+    model_config = ConfigDict(alias_generator=to_camel, extra="allow")
 
 
 class User(_Config):
@@ -156,3 +156,38 @@ class LastTripdata(_CamelConfig):
         average_speed_mph: Annotated[float | None, Field(..., alias="averageSpeed_mph")]
 
     data: Data
+
+
+class MaintenanceStatus(_CamelConfig):
+    class Data(_CamelConfig):
+        car_captured_timestamp: AwareDatetime
+        inspection_due_days: Annotated[
+            float | None, Field(..., alias="inspectionDue_days")
+        ]
+        inspection_due_km: Annotated[float | None, Field(..., alias="inspectionDue_km")]
+        mileage_km: Annotated[float | None, Field(..., alias="mileage_km")]
+        oil_service_due_days: Annotated[
+            float | None, Field(..., alias="oilServiceDue_days")
+        ]
+        oil_service_due_km: Annotated[
+            float | None, Field(..., alias="oilServiceDue_km")
+        ]
+
+    data: Data
+
+
+class UsersCapabilities(_CamelConfig):
+    pass
+
+
+class VehicleMeasurements(_CamelConfig):
+    class Data(_CamelConfig):
+        class Prop(_CamelConfig):
+            name: str
+            value: str | None
+
+        id: str
+        car_captured_timestamp: AwareDatetime
+        properties: list[Prop]
+
+    data: list[Data]

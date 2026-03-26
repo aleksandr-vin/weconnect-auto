@@ -274,3 +274,54 @@ async def last_shortterm_tripdata(vin: ArgVIN = None):
             vin = relations.relations[0].vehicle.vin
         last_shortterm_tripdata = await wc.get_last_shortterm_tripdata(vin=vin)
         output(last_shortterm_tripdata)
+
+
+@app.command()
+@coro
+async def maintenance_status(vin: ArgVIN = None):
+    async with WeConnectAPI(
+        username=None,
+        password=None,
+        cookie_file=state["cookie_file"],
+        state_file=state["state_file"],
+        verbose=state["verbose"],
+    ) as wc:
+        if not vin:
+            relations = await wc.get_users_me_relations()
+            vin = relations.relations[0].vehicle.vin
+        maintenance_status = await wc.get_maintenance_status(vin=vin)
+        output(maintenance_status)
+
+
+@app.command()
+@coro
+async def users_capabilities(vin: ArgVIN = None):
+    async with WeConnectAPI(
+        username=None,
+        password=None,
+        cookie_file=state["cookie_file"],
+        state_file=state["state_file"],
+        verbose=state["verbose"],
+    ) as wc:
+        if not vin:
+            relations = await wc.get_users_me_relations()
+            vin = relations.relations[0].vehicle.vin
+        data = await wc.get_users_capabilities(vin=vin)
+        output(data)
+
+
+@app.command()
+@coro
+async def vehicle_measurements(vin: ArgVIN = None):
+    async with WeConnectAPI(
+        username=None,
+        password=None,
+        cookie_file=state["cookie_file"],
+        state_file=state["state_file"],
+        verbose=state["verbose"],
+    ) as wc:
+        if not vin:
+            relations = await wc.get_users_me_relations()
+            vin = relations.relations[0].vehicle.vin
+        data = await wc.get_vehicle_measurements(vin=vin)
+        output(data)

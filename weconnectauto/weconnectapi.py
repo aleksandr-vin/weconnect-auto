@@ -23,6 +23,9 @@ from .models import (
     UserCaps,
     WarningLights,
     LastTripdata,
+    MaintenanceStatus,
+    UsersCapabilities,
+    VehicleMeasurements,
 )
 
 
@@ -452,7 +455,7 @@ class WeConnectAPI:
             headers={
                 **headers,
                 "User-Id": "__userId__",
-                "Accept-Language": "nl-NL",
+                "accept-language": "nl-NL",
             },
             params={
                 "gdc": "myvw-mbb-prod",
@@ -469,7 +472,7 @@ class WeConnectAPI:
 
     async def get_last_cyclic_tripdata(self, vin: str):
         if self.verbose:
-            print(f"[bold]Getting vehicle {vin} last warning lights[/]")
+            print(f"[bold]Getting vehicle {vin} last cyclic tripdata[/]")
         headers = await self.make_headers()
         response = await self._client.get(
             f"/app/authproxy/vwn-nl/proxy/vehicles/{vin}/tripdata/cyclic/last",
@@ -490,7 +493,7 @@ class WeConnectAPI:
 
     async def get_last_longterm_tripdata(self, vin: str):
         if self.verbose:
-            print(f"[bold]Getting vehicle {vin} last warning lights[/]")
+            print(f"[bold]Getting vehicle {vin} last longterm tripdata[/]")
         headers = await self.make_headers()
         response = await self._client.get(
             f"/app/authproxy/vwn-nl/proxy/vehicles/{vin}/tripdata/longterm/last",
@@ -511,7 +514,7 @@ class WeConnectAPI:
 
     async def get_last_shortterm_tripdata(self, vin: str):
         if self.verbose:
-            print(f"[bold]Getting vehicle {vin} last warning lights[/]")
+            print(f"[bold]Getting vehicle {vin} last shortterm tripdata[/]")
         headers = await self.make_headers()
         response = await self._client.get(
             f"/app/authproxy/vwn-nl/proxy/vehicles/{vin}/tripdata/shortterm/last",
@@ -529,3 +532,65 @@ class WeConnectAPI:
         response.raise_for_status()
         o = LastTripdata.model_validate_json(response.text)
         return o
+
+    async def get_maintenance_status(self, vin: str):
+        if self.verbose:
+            print(f"[bold]Getting vehicle {vin} maintenance status[/]")
+        headers = await self.make_headers()
+        response = await self._client.get(
+            f"/app/authproxy/vwn-nl/proxy/vehicles/{vin}/maintenance/status",
+            headers={
+                **headers,
+                "User-Id": "__userId__",
+            },
+            params={
+                "gdc": "myvw-mbb-prod",
+                "resourceHost": "myvw-vcf-prod",
+            },
+        )
+        if self.verbose:
+            await self.dump_response_info(response)
+        response.raise_for_status()
+        return MaintenanceStatus.model_validate_json(response.text)
+
+    async def get_users_capabilities(self, vin: str):
+        if self.verbose:
+            print(f"[bold]Getting vehicle {vin} users capabilities[/]")
+        headers = await self.make_headers()
+        response = await self._client.get(
+            f"/app/authproxy/vwn-nl/proxy/v1/vehicles/{vin}/users/__userId__/capabilities",
+            headers={
+                **headers,
+                "accept": "*/*",
+            },
+            params={
+                "gdc": "myvw-mbb-prod",
+                "resourceHost": "myvw-vdbs-prod",
+            },
+        )
+        if self.verbose:
+            await self.dump_response_info(response)
+        response.raise_for_status()
+        return UsersCapabilities.model_validate_json(response.text)
+
+    async def get_vehicle_measurements(self, vin: str):
+        if self.verbose:
+            print(f"[bold]Getting vehicle {vin} vehicle measurements[/]")
+        headers = await self.make_headers()
+        response = await self._client.get(
+            f"/app/authproxy/vwag-weconnect/proxy/vehicles/{vin}/measurements",
+            headers={
+                **headers,
+                "accept": "*/*",
+                "User-Id": "__userId__",
+            },
+            params={
+                "gdc": "myvw-mbb-prod",
+                "id": "odometer,range",
+                "resourceHost": "myvw-vcf-prod",
+            },
+        )
+        if self.verbose:
+            await self.dump_response_info(response)
+        response.raise_for_status()
+        return VehicleMeasurements.model_validate_json(response.text)
