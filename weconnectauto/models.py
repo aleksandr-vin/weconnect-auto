@@ -126,7 +126,7 @@ class WarningLights(_CamelConfig):
     data: Data
 
 
-class LastTripdata(_CamelConfig):
+class Tripdata(_CamelConfig):
     class Data(_CamelConfig):
         id: str
         trip_end_timestamp: AwareDatetime
@@ -144,9 +144,9 @@ class LastTripdata(_CamelConfig):
         ]
         travel_time: float | None
         average_fuel_consumption: float | None
-        average_fuel_consumption_unit: str
+        average_fuel_consumption_unit: str | None
         average_electric_consumption: float | None
-        average_electric_consumption_unit: str
+        average_electric_consumption_unit: str | None
         average_gas_consumption: float | None
         average_aux_consumption: float | None
         average_recuperation: float | None
@@ -155,7 +155,7 @@ class LastTripdata(_CamelConfig):
         ]
         average_speed_mph: Annotated[float | None, Field(..., alias="averageSpeed_mph")]
 
-    data: Data
+    data: Data | list[Data]
 
 
 class MaintenanceStatus(_CamelConfig):

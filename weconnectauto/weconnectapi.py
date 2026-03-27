@@ -7,12 +7,15 @@ from pathlib import Path
 from typing import Any
 import json
 from uuid import uuid4
+from datetime import datetime, UTC
 
 from bs4 import BeautifulSoup
 import httpx
 from http.cookiejar import MozillaCookieJar
 from rich import print
 import typer
+from pydantic import AwareDatetime
+
 
 from .models import (
     User,
@@ -22,7 +25,7 @@ from .models import (
     Packages,
     UserCaps,
     WarningLights,
-    LastTripdata,
+    Tripdata,
     MaintenanceStatus,
     UsersCapabilities,
     VehicleMeasurements,
@@ -106,6 +109,10 @@ def summarize_form(form: HtmlForm) -> None:
         suffix = f" options={f.options}" if f.options else ""
         field_type = f.field_type or f.tag
         print(f"- {f.name} ({field_type}) = {f.value!r}{suffix}")
+
+
+def format_vw_datetime(value: AwareDatetime) -> str:
+    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def build_form_payload(form: HtmlForm) -> dict[str, Any]:
@@ -470,12 +477,15 @@ class WeConnectAPI:
         o = WarningLights.model_validate_json(response.text)
         return o
 
-    async def get_last_cyclic_tripdata(self, vin: str):
+    async def get_cyclic_tripdata(self, vin: str, last: bool = True):
         if self.verbose:
             print(f"[bold]Getting vehicle {vin} last cyclic tripdata[/]")
         headers = await self.make_headers()
+        url = f"/app/authproxy/vwn-nl/proxy/vehicles/{vin}/tripdata/cyclic"
+        if last:
+            url += "/last"
         response = await self._client.get(
-            f"/app/authproxy/vwn-nl/proxy/vehicles/{vin}/tripdata/cyclic/last",
+            url=url,
             headers={
                 **headers,
                 "User-Id": "__userId__",
@@ -488,7 +498,7 @@ class WeConnectAPI:
         if self.verbose:
             await self.dump_response_info(response)
         response.raise_for_status()
-        o = LastTripdata.model_validate_json(response.text)
+        o = Tripdata.model_validate_json(response.text)
         return o
 
     async def get_last_longterm_tripdata(self, vin: str):
@@ -509,28 +519,57 @@ class WeConnectAPI:
         if self.verbose:
             await self.dump_response_info(response)
         response.raise_for_status()
-        o = LastTripdata.model_validate_json(response.text)
+        o = Tripdata.model_validate_json(response.text)
         return o
 
-    async def get_last_shortterm_tripdata(self, vin: str):
-        if self.verbose:
-            print(f"[bold]Getting vehicle {vin} last shortterm tripdata[/]")
+    async def get_shortterm_tripdata(
+        self,
+        vin: str,
+        from_: datetime | None = None,
+        to: datetime | None = None,
+        last: bool = True,
+    ):
+        """
+        Get shortterm tripdata.
+
+        Can return only one last data, or all in the from...to range.
+        """
+
+        params = {
+            "gdc": "myvw-mbb-prod",
+            "resourceHost": "myvw-vcf-prod",
+        }
         headers = await self.make_headers()
+        url = f"/app/authproxy/vwn-nl/proxy/vehicles/{vin}/tripdata/shortterm"
+        if last:
+            if self.verbose:
+                print(f"[bold]Getting vehicle {vin} last shortterm tripdata[/]")
+            url += "/last"
+        else:
+            if not to:
+                raise AttributeError("'to' argument value must be provided.")
+            if not from_:
+                raise AttributeError("'from_' argument value must be provided.")
+            params |= {
+                "from": format_vw_datetime(from_),
+                "to": format_vw_datetime(to),
+            }
+            if self.verbose:
+                print(
+                    f"[bold]Getting vehicle {vin} shortterm tripdata from {from_} to {to}[/]"
+                )
         response = await self._client.get(
-            f"/app/authproxy/vwn-nl/proxy/vehicles/{vin}/tripdata/shortterm/last",
+            url=url,
             headers={
                 **headers,
                 "User-Id": "__userId__",
             },
-            params={
-                "gdc": "myvw-mbb-prod",
-                "resourceHost": "myvw-vcf-prod",
-            },
+            params=params,
         )
         if self.verbose:
             await self.dump_response_info(response)
         response.raise_for_status()
-        o = LastTripdata.model_validate_json(response.text)
+        o = Tripdata.model_validate_json(response.text)
         return o
 
     async def get_maintenance_status(self, vin: str):

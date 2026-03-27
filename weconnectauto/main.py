@@ -2,10 +2,12 @@ from functools import wraps
 from typing import Annotated
 from enum import StrEnum
 from pathlib import Path
+from datetime import datetime, timedelta, UTC
 
 import anyio
 import typer
 from rich import print
+from pydantic import RootModel, AwareDatetime
 
 from weconnectauto.weconnectapi import WeConnectAPI
 
@@ -28,16 +30,46 @@ state = {
     "output_format": OutputFormat.DICT,
 }
 
+DEFAULT_FROM_TD = timedelta(weeks=-1)
+
+
+class SmartDatetime(RootModel):
+    root: AwareDatetime | timedelta
+
 
 app = typer.Typer(
     no_args_is_help=True,
 )
 
 
-ArgVIN = Annotated[
+OptVIN = Annotated[
     str | None,
-    typer.Argument(
+    typer.Option(
         help="VIN of the auto. If not provided, first VIN wil be fetched using `user-relations` command."
+    ),
+]
+
+OptFrom = Annotated[
+    str | None,
+    typer.Option(
+        "--from",
+        help=f"Starting timestamp of the (from...to) range. Can be in datetime format or timedelta. Ignored with --last. (default: {DEFAULT_FROM_TD})",
+    ),
+]
+
+
+OptTo = Annotated[
+    str | None,
+    typer.Option(
+        help="Ending timestamp of the (from...to) range. Can be in datetime format or timedelta. Ignored with --last. (default: present time)",
+    ),
+]
+
+OptLast = Annotated[
+    bool | None,
+    typer.Option(
+        "--last/--all",
+        help="Fetch only the last record or all records.",
     ),
 ]
 
@@ -129,7 +161,7 @@ async def user_relations():
 
 @app.command()
 @coro
-async def vehicle_data(vin: ArgVIN = None):
+async def vehicle_data(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -146,7 +178,7 @@ async def vehicle_data(vin: ArgVIN = None):
 
 @app.command()
 @coro
-async def vehicle_details(vin: ArgVIN = None):
+async def vehicle_details(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -163,7 +195,7 @@ async def vehicle_details(vin: ArgVIN = None):
 
 @app.command()
 @coro
-async def packages(vin: ArgVIN = None):
+async def packages(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -193,7 +225,7 @@ async def download_file(link: str):
 
 @app.command()
 @coro
-async def user_caps(vin: ArgVIN = None):
+async def user_caps(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -210,7 +242,7 @@ async def user_caps(vin: ArgVIN = None):
 
 @app.command()
 @coro
-async def last_warning_lights(vin: ArgVIN = None):
+async def last_warning_lights(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -227,7 +259,7 @@ async def last_warning_lights(vin: ArgVIN = None):
 
 @app.command()
 @coro
-async def last_cyclic_tripdata(vin: ArgVIN = None):
+async def cyclic_tripdata(vin: OptVIN = None, last: OptLast = True):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -238,13 +270,13 @@ async def last_cyclic_tripdata(vin: ArgVIN = None):
         if not vin:
             relations = await wc.get_users_me_relations()
             vin = relations.relations[0].vehicle.vin
-        last_cyclic_tripdata = await wc.get_last_cyclic_tripdata(vin=vin)
-        output(last_cyclic_tripdata)
+        data = await wc.get_cyclic_tripdata(vin=vin, last=last)
+        output(data)
 
 
 @app.command()
 @coro
-async def last_longterm_tripdata(vin: ArgVIN = None):
+async def last_longterm_tripdata(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -261,7 +293,29 @@ async def last_longterm_tripdata(vin: ArgVIN = None):
 
 @app.command()
 @coro
-async def last_shortterm_tripdata(vin: ArgVIN = None):
+async def shortterm_tripdata(
+    vin: OptVIN = None,
+    last: OptLast = True,
+    from_: OptFrom = None,
+    to: OptTo = None,
+):
+    if not last:
+        now = datetime.now(UTC)
+        if not from_:
+            from_ = DEFAULT_FROM_TD
+        if not to:
+            to = now
+        from_ = SmartDatetime(from_).root
+        to = SmartDatetime(to).root
+        if isinstance(from_, timedelta):
+            if state["verbose"]:
+                print(f"Ranging from {from_} from 'now'")
+            from_ = now + from_
+        if isinstance(to, timedelta):
+            if state["verbose"]:
+                print(f"Ranging to {to} from 'now'")
+            to = now + to
+
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -272,13 +326,15 @@ async def last_shortterm_tripdata(vin: ArgVIN = None):
         if not vin:
             relations = await wc.get_users_me_relations()
             vin = relations.relations[0].vehicle.vin
-        last_shortterm_tripdata = await wc.get_last_shortterm_tripdata(vin=vin)
+        last_shortterm_tripdata = await wc.get_shortterm_tripdata(
+            vin=vin, last=last, from_=from_, to=to
+        )
         output(last_shortterm_tripdata)
 
 
 @app.command()
 @coro
-async def maintenance_status(vin: ArgVIN = None):
+async def maintenance_status(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -295,7 +351,7 @@ async def maintenance_status(vin: ArgVIN = None):
 
 @app.command()
 @coro
-async def users_capabilities(vin: ArgVIN = None):
+async def users_capabilities(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
@@ -312,7 +368,7 @@ async def users_capabilities(vin: ArgVIN = None):
 
 @app.command()
 @coro
-async def vehicle_measurements(vin: ArgVIN = None):
+async def vehicle_measurements(vin: OptVIN = None):
     async with WeConnectAPI(
         username=None,
         password=None,
